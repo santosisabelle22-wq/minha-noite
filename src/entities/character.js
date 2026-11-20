@@ -1,8 +1,12 @@
-/** Personagem estilizado montado com geometrias procedurais. */
+/** Personagem estilizado com fallback procedural e suporte opcional a GLB/GLTF. */
 import * as THREE from 'three';
 import { MATERIALS } from '../world/materials.js';
 import { createGlowTexture, createStarGeometry } from '../core/utils.js';
 import { getAffinity } from '../data/affinities.js';
+import {
+  CHARACTER_MODELS, ANIMATION_ALIASES, MATERIAL_SLOTS, ACCESSORY_NODES
+} from '../core/model-manifest.js';
+import { loadCharacterModel } from './model-loader.js';
 
 const LIVY_APPEARANCE = {
   skin: '#fbf3ec',
@@ -12,6 +16,25 @@ const LIVY_APPEARANCE = {
   hairstyle: 'curls',
   accessory: 'star'
 };
+
+function normalizeName(value) {
+  return String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+const NORMALIZED_ANIMATION_ALIASES = Object.fromEntries(
+  Object.entries(ANIMATION_ALIASES).map(([alias, names]) => [
+    alias, names.map(normalizeName)
+  ])
+);
+
+const NORMALIZED_MATERIAL_SLOTS = Object.fromEntries(
+  Object.entries(MATERIAL_SLOTS).map(([slot, names]) => [
+    slot, names.map(normalizeName)
+  ])
+);
 
 function add(parent, geometry, material, x = 0, y = 0, z = 0) {
   const node = new THREE.Mesh(geometry, material);
@@ -30,6 +53,16 @@ export class CharacterModel {
     this.group = new THREE.Group();
     this.visual = new THREE.Group();
     this.group.add(this.visual);
+    this.externalRoot = new THREE.Group();
+    this.externalRoot.visible = false;
+    this.group.add(this.externalRoot);
+    this.external = null;
+    this.mixer = null;
+    this._clips = new Map();
+    this._actions = new Map();
+    this._locomotion = null;
+    this._locomotionAction = null;
+    this._tempAction = null;
     this.time = Math.random() * 10;
     this.walkPhase = 0;
     this.action = null;
@@ -38,6 +71,103 @@ export class CharacterModel {
     this._materials = [];
     this._glowTexture = createGlowTexture('#ffffff', 64);
     this.rebuild();
+
+    const url = CHARACTER_MODELS[this.isLivy ? 'livy' : 'player'];
+    this.ready = url
+      ? loadCharacterModel(url)
+        .then((model) => {
+          if (model) this._installExternal(model);
+          return model;
+        })
+        .catch((error) => {
+          console.warn('[Minha Noite] Modelo externo ignorado; mantendo fallback procedural.', error);
+          return null;
+        })
+      : Promise.resolve(null);
+  }
+
+  get isExternal() {
+    return Boolean(this.external);
+  }
+
+  _installExternal(model) {
+    this.external = model;
+    this.externalRoot.add(model.scene);
+    this.externalRoot.visible = true;
+    this.visual.visible = false;
+
+    this.mixer = new THREE.AnimationMixer(model.scene);
+    for (const [alias, names] of Object.entries(NORMALIZED_ANIMATION_ALIASES)) {
+      const clip = model.animations.find((candidate) => {
+        const clipName = normalizeName(candidate.name);
+        return names.some((name) => clipName.includes(name));
+      });
+      if (!clip) continue;
+      this._clips.set(alias, clip);
+      const action = this.mixer.clipAction(clip);
+      if (['jump', 'wave', 'dance', 'sit'].includes(alias)) {
+        action.setLoop(THREE.LoopOnce, 1);
+        action.clampWhenFinished = true;
+      }
+      this._actions.set(alias, action);
+    }
+    this._applyExternalAppearance();
+    this._setLocomotion('idle', true);
+  }
+
+  _applyExternalAppearance() {
+    if (!this.external) return;
+    const colors = {
+      skin: this.appearance.skin,
+      hair: this.appearance.hair,
+      dress: this.appearance.dress,
+      eyes: this.appearance.eyes
+    };
+    this.external.scene.traverse((node) => {
+      if (!node.isMesh || !node.material) return;
+      const materials = Array.isArray(node.material) ? node.material : [node.material];
+      materials.forEach((material) => {
+        const name = normalizeName(material.name);
+        const slot = Object.entries(NORMALIZED_MATERIAL_SLOTS)
+          .find(([, names]) => names.some((candidate) => name.includes(candidate)))?.[0];
+        if (!slot || !colors[slot]) return;
+        material.color = new THREE.Color(colors[slot]);
+        if (slot === 'eyes' && material.emissive) {
+          material.emissive = new THREE.Color(colors[slot]);
+          material.emissiveIntensity = Math.max(material.emissiveIntensity || 0, 0.12);
+        }
+        material.needsUpdate = true;
+      });
+    });
+
+    const accessoryNodes = Object.values(ACCESSORY_NODES)
+      .map((name) => this.external.scene.getObjectByName(name))
+      .filter(Boolean);
+    if (accessoryNodes.length === 0) return;
+    const selected = ACCESSORY_NODES[this.appearance.accessory];
+    accessoryNodes.forEach((node) => { node.visible = node.name === selected; });
+  }
+
+  _findAlias(name) {
+    const normalized = normalizeName(name);
+    return Object.entries(NORMALIZED_ANIMATION_ALIASES)
+      .find(([, names]) => names.some((candidate) => normalized === candidate || normalized.includes(candidate)))?.[0]
+      || null;
+  }
+
+  _setLocomotion(alias, immediate = false) {
+    if (!this.mixer || this._tempAction) return;
+    const next = this._actions.get(alias) || this._actions.get('idle');
+    if (!next || next === this._locomotionAction) return;
+    next.enabled = true;
+    next.setEffectiveTimeScale(1);
+    next.setEffectiveWeight(1);
+    next.play();
+    if (this._locomotionAction && this._locomotionAction !== next) {
+      this._locomotionAction.crossFadeTo(next, immediate ? 0 : 0.25, false);
+    }
+    this._locomotion = alias;
+    this._locomotionAction = next;
   }
 
   _mat(color, extra = {}) {
@@ -266,21 +396,73 @@ export class CharacterModel {
 
   setAffinity(id) {
     this.affinity = id;
+    if (this.external) return;
     this.rebuild();
   }
 
   setAppearance(appearance) {
     this.appearance = { ...this.appearance, ...appearance };
+    if (this.external) {
+      this._applyExternalAppearance();
+      return;
+    }
     this.rebuild();
   }
 
   playAction(name, duration = 1.6) {
     this.action = name;
     this.actionTimer = duration;
+    if (!this.mixer) return;
+
+    const alias = this._findAlias(name);
+    const action = this._actions.get(alias);
+    if (!action) return;
+    if (this._tempAction && this._tempAction !== action) this._tempAction.stop();
+    action.reset();
+    action.setLoop(THREE.LoopOnce, 1);
+    action.clampWhenFinished = true;
+    action.setEffectiveWeight(1);
+    action.play();
+    if (this._locomotionAction && this._locomotionAction !== action) {
+      this._locomotionAction.crossFadeTo(action, 0.15, false);
+    }
+    this._tempAction = action;
+  }
+
+  _updateExternal(dt, state = {}) {
+    const speed = Math.min(1, state.speed || 0);
+    this.externalRoot.position.y = this.isLivy
+      ? Math.sin(this.time * 1.2) * 0.05 + this.floatOffset * 0.7
+      : 0;
+
+    if (this.actionTimer > 0) {
+      this.actionTimer -= dt;
+      if (this.actionTimer <= 0) {
+        this.action = null;
+        if (this._tempAction) {
+          this._tempAction.fadeOut(0.25);
+          this._tempAction = null;
+          this._locomotionAction = null;
+        }
+      }
+    }
+
+    if (!this._tempAction) {
+      const desired = !state.grounded ? 'jump'
+        : speed > 0.7 ? 'run'
+          : speed > 0.08 ? 'walk' : 'idle';
+      this._setLocomotion(desired);
+    }
+
+    this.mixer?.update(dt);
   }
 
   update(dt, state = {}) {
     this.time += dt;
+    if (this.external) {
+      this._updateExternal(dt, state);
+      return;
+    }
     const speed = Math.min(1, state.speed || 0);
     this.walkPhase += dt * (4 + speed * 6) * (0.25 + speed);
 

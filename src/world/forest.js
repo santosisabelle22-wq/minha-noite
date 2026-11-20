@@ -4,6 +4,8 @@ import { MATERIALS } from './materials.js';
 import { seededRandom, createGlowTexture, createStarTexture, createLabelSprite } from '../core/utils.js';
 import { buildDistantTrees, buildMistBands } from './atmosphere.js';
 import { Butterflies, Fireflies, Creature } from '../entities/creatures.js';
+import { WORLD_PROPS } from '../core/model-manifest.js';
+import { attachWorldProps } from '../entities/model-loader.js';
 
 const BOUNDS = { minX: -78, maxX: 78, minZ: -78, maxZ: 78 };
 
@@ -60,6 +62,7 @@ export class ForestWorld {
     this._buildCollectibles();
     this._buildPortal();
     this._buildSigns();
+    attachWorldProps(this.group, WORLD_PROPS.forest);
 
     const spawn = new THREE.Vector3(0, this.heightAt(0, 16), 16);
     this.spawn = spawn;

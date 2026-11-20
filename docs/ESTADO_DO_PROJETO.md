@@ -22,10 +22,22 @@ Acompanhamento das etapas do Documento Mestre.
 - **Personagem e câmera**: `src/entities/character.js` refina rosto, olhos verdes, cabelos castanhos e vestido azul/branco/dourado; `src/systems/camera-controller.js` tem pitch/distância mais suaves, antecipação de olhar e colisão com obstáculos cadastrados.
 - **Comparação**: capturas no cenário fixo (floresta/vila às 15:30) em `capturas/antes-*.jpg` e `capturas/depois-*.jpg`.
 
+## Ponte GLB/GLTF (scaffold)
+
+- `index.html` agora publica também o prefixo `three/addons/` no import map. Os addons oficiais do r160 (`GLTFLoader`, `BufferGeometryUtils`, `SkeletonUtils`) estão em `vendor/addons/`, sem CDN e sem build.
+- `src/core/model-manifest.js` centraliza caminhos de personagens/props, aliases de animação, slots de material e nós de acessório. Todos os caminhos começam vazios (`null`/`[]`).
+- `src/entities/model-loader.js` carrega GLBs sob demanda, clona skeletons com segurança, normaliza a altura para 1.85 m, ajusta os pés ao chão e aplica sombras. Falhas de carregamento caem de volta ao procedural sem alterar estado, save ou mecânicas.
+- `CharacterModel` mantém a API pública (`group`, `visual`, `rebuild`, `setAppearance`, `setAffinity`, `playAction`, `update`). Quando um GLB é encontrado, usa `AnimationMixer` com crossfade para locomoção/ações e aplica aparência por nomes de material/nó; quando não há GLB, segue idêntico ao fallback procedural.
+- `forest.js` e `village.js` chamam `attachWorldProps()` com `WORLD_PROPS`, atualmente vazio.
+- Contrato de autoria, animações, materiais e recursos externos: `assets/models/README.md`.
+
+**Limitação importante:** os GLBs detalhados, texturas PBR, animações esqueléticas, HDRI e modelos de cenário ainda **não existem**. Esta rodada entrega apenas a estrutura técnica pronta para recebê-los; a qualidade artística final depende desses arquivos externos.
+
 ## Decisões tomadas
 
 - **Three.js local**: o arquivo `vendor/three.module.min.js` evita dependência de CDN e permite funcionar sem conexão após o carregamento da página.
-- **Recursos procedurais**: árvores, flores, construções e personagens são montados com geometrias e materiais em código. Isso permite evoluir o protótipo antes das artes definitivas.
+- **Recursos procedurais**: árvores, flores, construções e personagens são montados com geometrias e materiais em código. Isso permite evoluir o protótipo antes das artes definitivas e serve como fallback caso um GLB falhe.
+- **Modelos opcionais**: GLB/GLTF não substituem o fallback por padrão. Eles são ativados apenas preenchendo `src/core/model-manifest.js`, preservando salvamento, missões, input e câmera.
 - **Salvamento local**: `localStorage` com chave versionada (`minha-noite:save:v1`). O formato já tem campos para inventário, missões, recordações e configurações, preparando a migração futura para contas.
 - **Sem invenção de história**: o conteúdo narrativo se limita à apresentação, à missão introdutória e a observações da Livy. O castelo, a varinha e o poder celestial permanecem como etapa futura.
 
@@ -43,3 +55,5 @@ Acompanhamento das etapas do Documento Mestre.
 - A raposa luminosa e os animais se movem em pequenos círculos; ainda não há IA de aproximação.
 - Diálogos e missões extras ainda não têm áudio com vozes.
 - O save não é sincronizado entre dispositivos (previsto para a etapa de contas).
+- A ponte GLB/GLTF está pronta, mas não há modelos/texturas/HDRI fornecidos; a aparência definitiva ainda depende de arte externa.
+- GLBs com Draco/KTX2 e reflexos PBR com HDRI/EXR exigem loaders adicionais locais, ainda não vendorizados.

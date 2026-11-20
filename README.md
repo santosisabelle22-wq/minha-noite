@@ -2,7 +2,7 @@
 
 Uma aventura de fantasia 3D que roda direto no navegador. Este é o primeiro corte jogável do projeto: abertura, apresentação da Livy, criação de personagem, Floresta Encantada, vila pessoal, câmera em terceira pessoa e missão introdutória.
 
-> Os artefatos visuais atuais são **provisórios e gerados por código**. Os retratos em `assets/` são espaços reservados para as artes definitivas.
+> Os artefatos visuais atuais são **provisórios e gerados por código**. Os retratos em `assets/` são espaços reservados para as artes definitivas. A ponte para GLB/GLTF já está preparada, mas os modelos detalhados, texturas PBR e HDRI ainda precisam ser fornecidos; veja `assets/models/README.md`.
 
 ## Como executar
 
@@ -65,6 +65,7 @@ Conforme o documento mestre, estas partes pertencem a etapas futuras e **não de
 - Sistema completo de pets com nomes, cuidados e acessórios.
 - Castelo da Livy, varinha, poder celestial, asas e voo livre (bloqueado até nível 30).
 - Novos mundos, eventos e trilha sonora original definitiva.
+- Modelos GLB/GLTF definitivos, PBR/HDRI e animações esqueléticas de alta qualidade (a estrutura de carregamento existe; os arquivos de arte não).
 
 ## Estrutura
 
@@ -72,13 +73,14 @@ Conforme o documento mestre, estas partes pertencem a etapas futuras e **não de
 index.html                  Interface e ponto de entrada
 styles/main.css             Identidade visual e layout responsivo
 vendor/three.module.min.js  Three.js local (sem CDN)
-src/core/                   Config, save, input, áudio, eventos, jogo
+vendor/addons/              GLTFLoader, SkeletonUtils e BufferGeometryUtils r160
+src/core/                   Config, save, input, áudio, eventos, jogo, manifesto de modelos
 src/data/                   Afinidades, diálogos e textos
 src/entities/               Personagem e criaturas
 src/systems/                Câmera, movimento, interação e missões
 src/ui/                     Telas, HUD, diálogos e painéis
 src/world/                  Céu/clima, floresta, vila e materiais
-assets/                     Retratos provisórios (substituíveis)
+assets/                     Retratos provisórios e contrato para GLBs em assets/models/
 tools/serve.ps1             Servidor estático para testes
 docs/                       Acompanhamento das etapas
 ```
@@ -89,3 +91,4 @@ docs/                       Acompanhamento das etapas
 - Personagens 3D: `src/entities/character.js`.
 - Criaturas: `src/entities/creatures.js`.
 - Trilha sonora: `src/core/audio.js` gera um ambiente simples com WebAudio; substitua por arquivos originais ou licenciados.
+- Modelos 3D: coloque os GLBs em `assets/models/`, siga `assets/models/README.md` e preencha `src/core/model-manifest.js`. Sem isso, o fallback procedural continua ativo.

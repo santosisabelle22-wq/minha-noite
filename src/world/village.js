@@ -5,6 +5,8 @@ import { createGlowTexture, createLabelSprite, seededRandom } from '../core/util
 import { buildDistantTrees, buildMistBands, buildContactShadow } from './atmosphere.js';
 import { CharacterModel } from '../entities/character.js';
 import { Creature } from '../entities/creatures.js';
+import { WORLD_PROPS } from '../core/model-manifest.js';
+import { attachWorldProps } from '../entities/model-loader.js';
 
 function part(parent, geometry, material, x, y, z) {
   const node = new THREE.Mesh(geometry, material);
@@ -35,6 +37,7 @@ export class VillageWorld {
     this._buildDecor();
     this._buildAtmosphere();
     this._buildLivy();
+    attachWorldProps(this.group, WORLD_PROPS.village);
     this.spawn = new THREE.Vector3(0, 0, 9);
   }
 
