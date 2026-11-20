@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="160" height="160" role="img" aria-label="Retrato provisório do personagem">
+  <defs>
+    <radialGradient id="bg2" cx="50%" cy="35%" r="75%"><stop offset="0" stop-color="#3c73c8"/><stop offset="1" stop-color="#081735"/></radialGradient>
+    <linearGradient id="dress2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7ea8e8"/><stop offset=".55" stop-color="#2f5fb8"/><stop offset="1" stop-color="#0d2554"/></linearGradient>
+    <linearGradient id="hair2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7d533d"/><stop offset="1" stop-color="#40261d"/></linearGradient>
+    <filter id="glow2"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect width="160" height="160" fill="url(#bg2)"/>
+  <g fill="#f6dfae" opacity=".7" filter="url(#glow2)"><circle cx="28" cy="40" r="1.4"/><circle cx="132" cy="54" r="1.4"/><circle cx="120" cy="120" r="1.2"/></g>
+  <g fill="url(#hair2)"><ellipse cx="80" cy="76" rx="38" ry="43"/><circle cx="46" cy="88" r="12"/><circle cx="114" cy="88" r="12"/></g>
+  <path d="M80 100c-18 0-30 11-34 31l-6 29h80l-6-29c-4-20-16-31-34-31z" fill="url(#dress2)"/>
+  <path d="M59 119q21 13 42 0M53 137q27 11 54 0" fill="none" stroke="#ecc878" stroke-width="1.8" opacity=".8"/>
+  <path d="M80 102l-8 13 8 8 8-8z" fill="#f8fbff" stroke="#d9ad55" stroke-width="1.3"/>
+  <ellipse cx="80" cy="69" rx="25" ry="29" fill="#f0cdb4"/>
+  <g fill="url(#hair2)"><circle cx="61" cy="48" r="12"/><circle cx="75" cy="41" r="13"/><circle cx="90" cy="42" r="12"/><circle cx="103" cy="50" r="11"/></g>
+  <ellipse cx="70" cy="72" rx="5" ry="6.5" fill="#fff"/><ellipse cx="90" cy="72" rx="5" ry="6.5" fill="#fff"/>
+  <ellipse cx="70" cy="73" rx="3.2" ry="4.8" fill="#4f9d78"/><ellipse cx="90" cy="73" rx="3.2" ry="4.8" fill="#4f9d78"/>
+  <circle cx="70" cy="73" r="1.5" fill="#102b22"/><circle cx="90" cy="73" r="1.5" fill="#102b22"/>
+  <path d="M64 64q6-4 12 0M84 64q6-4 12 0" fill="none" stroke="#56392b" stroke-width="1.6"/>
+  <path d="M77 88q3 2 6 0" fill="none" stroke="#b87870" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M67 99q13 9 26 0" fill="none" stroke="#d9ad55" stroke-width="1.5"/>
+  <path d="M80 105l2 4.6 5 .6-3.7 3.4 1 4.8L80 115.6l-4.3 2.8 1-4.8-3.7-3.4 5-.6z" fill="#ecc878" filter="url(#glow2)"/>
+</svg>

@@ -1,0 +1,16 @@
+# Arquivos de sistema
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Editores
+.vscode/
+.idea/
+*.swp
+
+# Logs e temporários
+*.log
+*.tmp
+node_modules/
+
+# O Three.js é versionado propositalmente: não há etapa de build.

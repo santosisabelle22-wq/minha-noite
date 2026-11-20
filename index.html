@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#081735" />
+  <meta name="description" content="Minha Noite — uma aventura de fantasia 3D no navegador." />
+  <title>Minha Noite</title>
+  <link rel="stylesheet" href="./styles/main.css" />
+  <script type="importmap">
+    { "imports": { "three": "./vendor/three.module.min.js" } }
+  </script>
+</head>
+<body>
+  <div id="app">
+    <canvas id="game-canvas" aria-label="Mundo 3D de Minha Noite"></canvas>
+
+    <!-- Camada de transição -->
+    <div id="fade-layer" aria-hidden="true"></div>
+
+    <!-- Carregamento -->
+    <section id="loading-screen" class="screen screen--loading" aria-live="polite">
+      <div class="loading-mark" aria-hidden="true">✦</div>
+      <p class="loading-text">Preparando a noite...</p>
+      <div class="loading-bar"><i id="loading-fill"></i></div>
+      <p id="loading-detail" class="loading-detail">Carregando o universo</p>
+    </section>
+
+    <!-- Abertura -->
+    <section id="intro-screen" class="screen screen--intro is-hidden">
+      <div class="intro-stars" aria-hidden="true"></div>
+      <div class="intro-content">
+        <p class="intro-eyebrow">Uma aventura para viver</p>
+        <h1 class="intro-title"><span>Minha</span><span>Noite</span></h1>
+        <div class="gold-rule" aria-hidden="true"><i></i><span>✦</span><i></i></div>
+        <p class="intro-subtitle">Explore, descubra e chame este mundo de seu.</p>
+        <div class="intro-actions">
+          <button id="btn-enter" class="btn btn--primary" type="button">Entrar no universo</button>
+          <button id="btn-continue" class="btn btn--ghost is-hidden" type="button">Continuar jornada</button>
+        </div>
+        <p class="intro-hint">Teclado, mouse ou toque — o caminho é seu.</p>
+      </div>
+      <p class="intro-footer">Projeto em desenvolvimento · versão de demonstração</p>
+    </section>
+
+    <!-- Apresentação da Livy -->
+    <section id="story-screen" class="screen screen--story is-hidden">
+      <div class="story-card">
+        <img class="portrait portrait--large" src="./assets/livy-portrait.svg" alt="Retrato provisório de Livy" />
+        <div class="story-copy">
+          <p class="story-label">Uma voz suave te chama</p>
+          <h2>Livy</h2>
+          <p id="story-text" class="story-text"></p>
+          <div class="story-actions">
+            <button id="btn-story-next" class="btn btn--primary" type="button">Continuar <span aria-hidden="true">›</span></button>
+            <button id="btn-story-skip" class="btn btn--text" type="button">Pular apresentação</button>
+          </div>
+          <p class="story-progress"><i id="story-dots"></i></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Criação do personagem -->
+    <section id="creation-screen" class="screen screen--creation is-hidden">
+      <div class="creation-shell">
+        <header class="creation-header">
+          <p class="eyebrow">Capítulo primeiro</p>
+          <h2>Quem você será nesta noite?</h2>
+          <p class="muted">Escolha seu nome, sua afinidade e seu estilo. Você poderá mudar tudo depois.</p>
+        </header>
+
+        <div class="creation-grid">
+          <aside class="creation-preview">
+            <div class="preview-frame">
+              <img id="preview-portrait" class="portrait portrait--hero" src="./assets/hero-portrait.svg" alt="Prévia provisória do personagem" />
+              <span id="preview-aura" class="preview-aura"></span>
+            </div>
+            <p id="preview-name" class="preview-name">Viajante</p>
+            <p id="preview-affinity" class="preview-affinity">Sem afinidade</p>
+          </aside>
+
+          <div class="creation-form">
+            <div class="field">
+              <label for="input-name">Seu nome</label>
+              <input id="input-name" type="text" maxlength="18" placeholder="Como quer ser chamada?" autocomplete="off" />
+            </div>
+
+            <fieldset class="field">
+              <legend>Afinidade mágica</legend>
+              <div id="affinity-list" class="affinity-list"></div>
+            </fieldset>
+
+            <div class="field field--colors">
+              <span class="field-title">Aparência</span>
+              <div class="color-row">
+                <label>Pele <span id="skin-value"></span><input id="color-skin" type="color" value="#f0cdb4" /></label>
+                <label>Cabelo <span id="hair-value"></span><input id="color-hair" type="color" value="#5b3b2e" /></label>
+                <label>Vestido <span id="dress-value"></span><input id="color-dress" type="color" value="#2f5fb8" /></label>
+                <label>Olhos <span id="eyes-value"></span><input id="color-eyes" type="color" value="#4f9d78" /></label>
+              </div>
+              <div class="style-row">
+                <label>Penteado
+                  <select id="select-hair">
+                    <option value="curls">Cachos longos</option>
+                    <option value="braid">Trança</option>
+                    <option value="bob">Curto e leve</option>
+                  </select>
+                </label>
+                <label>Acessório
+                  <select id="select-accessory">
+                    <option value="star">Pingente de estrela</option>
+                    <option value="moon">Lua pequena</option>
+                    <option value="flower">Flor de pano</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+
+            <div class="creation-footer">
+              <p class="muted small">Os poderes são desbloqueados aos poucos durante a jornada.</p>
+              <button id="btn-start" class="btn btn--primary btn--wide" type="button">Começar a jornada</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HUD -->
+    <div id="hud" class="hud is-hidden">
+      <div class="hud-top-left panel-glass">
+        <div class="avatar-chip"><img src="./assets/hero-portrait.svg" alt="" /></div>
+        <div class="hud-identity">
+          <strong id="hud-name">Viajante</strong>
+          <span id="hud-affinity">Elfa da Natureza · Nv. 1</span>
+        </div>
+      </div>
+
+      <div class="hud-top-right panel-glass">
+        <span id="hud-world">Vila Pessoal</span>
+        <span class="dot">·</span>
+        <span id="hud-time">Manhã</span>
+        <span class="dot">·</span>
+        <span id="hud-weather">Céu limpo</span>
+      </div>
+
+      <div id="quest-tracker" class="quest-tracker panel-glass">
+        <p class="quest-eyebrow">Objetivo atual</p>
+        <p id="quest-title" class="quest-title">Chegue à vila</p>
+        <ul id="quest-steps" class="quest-steps"></ul>
+      </div>
+
+      <div id="interaction-prompt" class="interaction-prompt is-hidden">
+        <kbd>E</kbd><span id="interaction-label">Interagir</span>
+      </div>
+
+      <div id="toast-stack" class="toast-stack" aria-live="polite"></div>
+
+      <nav class="hud-actions" aria-label="Ações do jogo">
+        <button id="btn-inventory" class="hud-btn" type="button" title="Inventário (I)"><span>✦</span><small>Itens</small></button>
+        <button id="btn-map" class="hud-btn" type="button" title="Mapa (M)"><span>◇</span><small>Mapa</small></button>
+        <button id="btn-missions" class="hud-btn" type="button" title="Missões (J)"><span>❖</span><small>Missões</small></button>
+        <button id="btn-menu" class="hud-btn" type="button" title="Menu (Esc)"><span>☰</span><small>Menu</small></button>
+      </nav>
+
+      <div id="touch-controls" class="touch-controls is-hidden" aria-hidden="true">
+        <div id="joystick" class="joystick"><i id="joystick-knob"></i></div>
+        <div class="touch-buttons">
+          <button id="touch-gesture" class="touch-btn touch-btn--small" type="button">Gesto</button>
+          <button id="touch-run" class="touch-btn touch-btn--small" type="button">Correr</button>
+          <button id="touch-jump" class="touch-btn touch-btn--small" type="button">Pular</button>
+          <button id="touch-action" class="touch-btn touch-btn--main" type="button">Interagir</button>
+        </div>
+      </div>
+
+      <p id="controls-hint" class="controls-hint">WASD mover · Shift correr · Espaço pular · E interagir · Arraste para girar a câmera</p>
+    </div>
+
+    <!-- Diálogo -->
+    <div id="dialogue-layer" class="dialogue-layer is-hidden">
+      <div class="dialogue-box panel-glass">
+        <img id="dialogue-portrait" class="portrait" src="./assets/livy-portrait.svg" alt="" />
+        <div class="dialogue-copy">
+          <strong id="dialogue-name">Livy</strong>
+          <p id="dialogue-text"></p>
+          <button id="btn-dialogue-next" class="btn btn--small" type="button">Continuar <span aria-hidden="true">›</span></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Painéis -->
+    <div id="panel-layer" class="panel-layer is-hidden">
+      <div class="panel-backdrop" data-close-panel></div>
+
+      <section class="panel panel--inventory is-hidden" data-panel="inventory">
+        <header><h2>Inventário</h2><button class="panel-close" type="button" data-close-panel>×</button></header>
+        <div class="panel-tabs" data-tabs="inventory">
+          <button class="tab is-active" data-tab="collected" type="button">Coletados</button>
+          <button class="tab" data-tab="artifacts" type="button">Artefatos</button>
+          <button class="tab" data-tab="pets" type="button">Companheiros</button>
+        </div>
+        <div class="panel-body">
+          <div data-tab-content="collected"><div id="inventory-grid" class="item-grid"></div></div>
+          <div data-tab-content="artifacts" class="is-hidden">
+            <p class="empty-note">Nenhum artefato encontrado ainda. Eles aparecem em baús, ruínas e missões especiais.</p>
+            <div id="artifact-grid" class="item-grid"></div>
+          </div>
+          <div data-tab-content="pets" class="is-hidden">
+            <p class="empty-note">Companheiros podem ser adotados na vila, resgatados em missões ou conquistados durante a exploração.</p>
+            <div id="pet-grid" class="item-grid"></div>
+          </div>
+        </div>
+        <footer class="panel-footer"><span id="inventory-count">0 itens</span></footer>
+      </section>
+
+      <section class="panel panel--map is-hidden" data-panel="map">
+        <header><h2>Mapa</h2><button class="panel-close" type="button" data-close-panel>×</button></header>
+        <div class="panel-body map-body">
+          <div class="map-canvas">
+            <span class="map-region map-region--village" data-map-region="village">✦<small>Vila Pessoal</small></span>
+            <span class="map-region map-region--forest" data-map-region="forest">❀<small>Floresta Encantada</small></span>
+            <span class="map-region map-region--locked" data-map-region="locked">?<small>Portais por descobrir</small></span>
+            <span id="map-player" class="map-player"></span>
+          </div>
+          <p class="muted">Novos mundos serão adicionados ao universo em futuras atualizações.</p>
+        </div>
+      </section>
+
+      <section class="panel panel--missions is-hidden" data-panel="missions">
+        <header><h2>Missões</h2><button class="panel-close" type="button" data-close-panel>×</button></header>
+        <div class="panel-body"><div id="mission-list" class="mission-list"></div></div>
+      </section>
+
+      <section class="panel panel--museum is-hidden" data-panel="museum">
+        <header><h2>Museu Mágico</h2><button class="panel-close" type="button" data-close-panel>×</button></header>
+        <div class="panel-body">
+          <p class="muted">Cada aventura concluída deixa uma recordação exposta aqui.</p>
+          <div id="memory-grid" class="memory-grid"></div>
+        </div>
+      </section>
+
+      <section class="panel panel--settings is-hidden" data-panel="settings">
+        <header><h2>Menu e ajustes</h2><button class="panel-close" type="button" data-close-panel>×</button></header>
+        <div class="panel-body settings-body">
+          <div class="setting"><label for="setting-quality">Qualidade gráfica</label>
+            <select id="setting-quality"><option value="low">Leve</option><option value="medium">Média</option><option value="high">Alta</option></select>
+          </div>
+          <div class="setting"><label for="setting-volume">Volume</label><input id="setting-volume" type="range" min="0" max="100" value="45" /></div>
+          <div class="setting"><span class="setting-label">Salvamento</span><p class="muted" id="save-info">Progresso salvo neste navegador.</p>
+            <button id="btn-save-now" class="btn btn--small" type="button">Salvar agora</button>
+          </div>
+          <div class="setting"><span class="setting-label">Atalhos</span>
+            <p class="muted small">WASD/Setas andar · Shift correr · Espaço pular · E interagir · Q acenar · F dançar · I inventário · M mapa · J missões · Esc menu</p>
+          </div>
+          <div class="settings-actions">
+            <button id="btn-change-character" class="btn btn--ghost" type="button">Alterar aparência</button>
+            <button id="btn-back-intro" class="btn btn--ghost btn--danger" type="button">Voltar à abertura</button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div id="fade-caption" class="fade-caption is-hidden"></div>
+  </div>
+
+  <noscript><p class="noscript">Minha Noite precisa de JavaScript ativado no navegador.</p></noscript>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

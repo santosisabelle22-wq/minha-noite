@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="160" height="160" role="img" aria-label="Retrato provisório de Livy">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="35%" r="75%">
+      <stop offset="0" stop-color="#3c73c8"/><stop offset="1" stop-color="#081735"/>
+    </radialGradient>
+    <linearGradient id="dress" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f8fbff"/><stop offset=".5" stop-color="#4f84d8"/><stop offset="1" stop-color="#143d78"/>
+    </linearGradient>
+    <linearGradient id="hair" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8a5c42"/><stop offset="1" stop-color="#4a2d22"/>
+    </linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect width="160" height="160" fill="url(#bg)"/>
+  <g fill="#f6dfae" opacity=".75" filter="url(#glow)">
+    <circle cx="24" cy="30" r="1.6"/><circle cx="132" cy="22" r="1.2"/><circle cx="142" cy="92" r="1.5"/><circle cx="18" cy="110" r="1.2"/>
+    <path d="M32 58l1.5 4 4 1.5-4 1.5L32 69l-1.5-4-4-1.5 4-1.5z"/>
+  </g>
+  <!-- cabelo atrás -->
+  <g fill="url(#hair)">
+    <ellipse cx="80" cy="76" rx="39" ry="44"/>
+    <circle cx="45" cy="86" r="13"/><circle cx="48" cy="105" r="12"/><circle cx="115" cy="86" r="13"/><circle cx="112" cy="105" r="12"/>
+  </g>
+  <!-- vestido -->
+  <path d="M80 100c-18 0-30 10-34 30l-6 30h80l-6-30c-4-20-16-30-34-30z" fill="url(#dress)"/>
+  <path d="M58 118q22 14 44 0M52 136q28 12 56 0" fill="none" stroke="#ecc878" stroke-width="2" opacity=".85"/>
+  <path d="M80 101l-9 14 9 9 9-9z" fill="#f8fbff" stroke="#d9ad55" stroke-width="1.4"/>
+  <path d="M80 124l2.2 5.2 5.5.6-4.2 3.7 1.2 5.4L80 136l-4.7 2.9 1.2-5.4-4.2-3.7 5.5-.6z" fill="#ecc878" filter="url(#glow)"/>
+  <!-- mangas -->
+  <path d="M58 106q-12 4-14 18l12 6 10-16zM102 106q12 4 14 18l-12 6-10-16z" fill="#f8fbff" stroke="#d9ad55" stroke-width="1.5"/>
+  <!-- rosto de porcelana -->
+  <ellipse cx="80" cy="69" rx="26" ry="30" fill="#fbf3ec"/>
+  <ellipse cx="80" cy="69" rx="26" ry="30" fill="none" stroke="#e7c9b5" stroke-width="1"/>
+  <!-- franja em cachos -->
+  <g fill="url(#hair)">
+    <circle cx="60" cy="49" r="12"/><circle cx="74" cy="41" r="13"/><circle cx="89" cy="42" r="13"/><circle cx="103" cy="50" r="11"/>
+    <circle cx="54" cy="60" r="9"/><circle cx="107" cy="61" r="9"/>
+  </g>
+  <!-- olhos verdes -->
+  <ellipse cx="70" cy="72" rx="5.5" ry="7" fill="#fff"/><ellipse cx="90" cy="72" rx="5.5" ry="7" fill="#fff"/>
+  <ellipse cx="70" cy="73" rx="3.4" ry="5" fill="#3f9b74"/><ellipse cx="90" cy="73" rx="3.4" ry="5" fill="#3f9b74"/>
+  <circle cx="70" cy="73" r="1.6" fill="#0c2a22"/><circle cx="90" cy="73" r="1.6" fill="#0c2a22"/>
+  <circle cx="71.4" cy="71" r="1" fill="#fff"/><circle cx="91.4" cy="71" r="1" fill="#fff"/>
+  <path d="M64 64q6-4 12 0M84 64q6-4 12 0" fill="none" stroke="#6b4434" stroke-width="1.6"/>
+  <path d="M77 88q3 2 6 0" fill="none" stroke="#c98d84" stroke-width="1.6" stroke-linecap="round"/>
+  <circle cx="63" cy="82" r="3" fill="#f0b9b2" opacity=".5"/><circle cx="97" cy="82" r="3" fill="#f0b9b2" opacity=".5"/>
+  <!-- colar e pontos luminosos das articulações -->
+  <path d="M68 99q12 9 24 0" fill="none" stroke="#d9ad55" stroke-width="1.6"/>
+  <g fill="#f6dfae" filter="url(#glow)"><circle cx="55" cy="116" r="2"/><circle cx="105" cy="116" r="2"/><circle cx="80" cy="105" r="1.8"/></g>
+</svg>
