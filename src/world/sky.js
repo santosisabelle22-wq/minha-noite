@@ -16,11 +16,21 @@ const SKY_FRAGMENT = `
   uniform vec3 topColor;
   uniform vec3 bottomColor;
   uniform vec3 horizonColor;
+  uniform vec3 sunDirection;
+  uniform vec3 sunColor;
+  uniform float sunStrength;
   varying vec3 vWorldPosition;
   void main() {
-    float h = normalize(vWorldPosition).y;
-    vec3 color = mix(bottomColor, horizonColor, smoothstep(-0.25, 0.08, h));
-    color = mix(color, topColor, smoothstep(0.0, 0.75, h));
+    vec3 direction = normalize(vWorldPosition);
+    float h = direction.y;
+    vec3 color = mix(bottomColor, horizonColor, smoothstep(-0.22, 0.10, h));
+    color = mix(color, topColor, smoothstep(0.02, 0.78, h));
+
+    // Halo suave ao redor do sol e faixa de luz no horizonte.
+    float halo = pow(max(dot(direction, normalize(sunDirection)), 0.0), 7.0);
+    color += sunColor * halo * sunStrength;
+    color += vec3(0.30, 0.38, 0.52) * exp(-abs(h) * 10.0) * 0.05;
+
     gl_FragColor = vec4(color, 1.0);
   }
 `;
@@ -30,9 +40,11 @@ export class SkySystem {
     this.scene = scene;
     this.quality = quality;
     this.time = 0.18;
+    this.elapsed = 0;
     this.weather = 'clear';
     this.weatherTimer = 45;
     this.light = null;
+    this.followTarget = null;
     this.group = new THREE.Group();
     scene.add(this.group);
 
@@ -40,7 +52,10 @@ export class SkySystem {
       uniforms: {
         topColor: { value: new THREE.Color(0x1b4a9c) },
         bottomColor: { value: new THREE.Color(0xbcd8ee) },
-        horizonColor: { value: new THREE.Color(0xf2d9b0) }
+        horizonColor: { value: new THREE.Color(0xf2d9b0) },
+        sunDirection: { value: new THREE.Vector3(0, 1, 0) },
+        sunColor: { value: new THREE.Color(0xffe8bd) },
+        sunStrength: { value: 0 }
       },
       vertexShader: SKY_VERTEX,
       fragmentShader: SKY_FRAGMENT,
@@ -51,28 +66,32 @@ export class SkySystem {
     this.sky.frustumCulled = false;
     this.group.add(this.sky);
 
-    this.hemi = new THREE.HemisphereLight(0xbcd8ee, 0x2c5545, 1.2);
+    // Luz de preenchimento fria + luz principal quente: contraste cinematográfico suave.
+    this.hemi = new THREE.HemisphereLight(0xc7d8ff, 0x29405c, 0.55);
     this.scene.add(this.hemi);
 
-    this.sunLight = new THREE.DirectionalLight(0xfff2d5, 1.2);
+    this.sunLight = new THREE.DirectionalLight(0xffe8bd, 1.6);
     this.sunLight.position.set(80, 90, 40);
     this.sunLight.castShadow = quality.shadows;
-    if (quality.shadows) {
-      const s = this.sunLight.shadow.mapSize.width;
-      this.sunLight.shadow.mapSize.set(quality.shadowMapSize, quality.shadowMapSize);
-      this.sunLight.shadow.camera.left = -70;
-      this.sunLight.shadow.camera.right = 70;
-      this.sunLight.shadow.camera.top = 70;
-      this.sunLight.shadow.camera.bottom = -70;
-      this.sunLight.shadow.camera.far = 260;
-      this.sunLight.shadow.bias = -0.0008;
-      void s;
-    }
+    this.sunLight.shadow.mapSize.set(quality.shadowMapSize, quality.shadowMapSize);
+    this.sunLight.shadow.camera.left = -85;
+    this.sunLight.shadow.camera.right = 85;
+    this.sunLight.shadow.camera.top = 85;
+    this.sunLight.shadow.camera.bottom = -85;
+    this.sunLight.shadow.camera.far = 300;
+    this.sunLight.shadow.bias = -0.0006;
+    this.sunLight.shadow.normalBias = 0.025;
+    this.sunLight.shadow.radius = 3;
     this.scene.add(this.sunLight);
     this.scene.add(this.sunLight.target);
 
-    this.ambient = new THREE.AmbientLight(0x7ea8e8, 0.28);
+    this.ambient = new THREE.AmbientLight(0xc7d8ff, 0.7);
     this.scene.add(this.ambient);
+
+    this.fillLight = new THREE.DirectionalLight(0xa9c8e8, 0.24);
+    this.fillLight.position.set(-70, 48, -55);
+    this.scene.add(this.fillLight);
+    this.scene.add(this.fillLight.target);
 
     const glowTexture = createGlowTexture('#fff2cd', 128);
     this.sun = new THREE.Sprite(new THREE.SpriteMaterial({
@@ -91,7 +110,8 @@ export class SkySystem {
 
     this._buildStars(quality.stars);
     this._buildWeather(quality);
-    this.scene.fog = new THREE.FogExp2(0xbcd8ee, 0.006);
+    this._buildMotes(quality.particles);
+    this.scene.fog = new THREE.FogExp2(0x9eb9d2, 0.0088);
     this.update(0, true);
   }
 
@@ -114,6 +134,69 @@ export class SkySystem {
     });
     this.stars = new THREE.Points(geometry, this.starMaterial);
     this.group.add(this.stars);
+  }
+
+  /** Poeira luminosa muito sutil: acompanha o jogador e deriva devagar. */
+  _buildMotes(count) {
+    const random = seededRandom(2207);
+    const positions = new Float32Array(count * 3);
+    this.moteDrift = new Float32Array(count * 2);
+    for (let i = 0; i < count; i++) {
+      positions[i * 3] = (random() - 0.5) * 28;
+      positions[i * 3 + 1] = 0.35 + random() * 6.2;
+      positions[i * 3 + 2] = (random() - 0.5) * 28;
+      this.moteDrift[i * 2] = random() * Math.PI * 2;
+      this.moteDrift[i * 2 + 1] = 0.1 + random() * 0.18;
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    if (!this._moteTexture) this._moteTexture = createGlowTexture('#ffffff', 64);
+    this.motes = new THREE.Points(geometry, new THREE.PointsMaterial({
+      color: 0xf4f1e8, size: 0.11, map: this._moteTexture,
+      transparent: true, opacity: 0.24, depthWrite: false,
+      blending: THREE.AdditiveBlending
+    }));
+    this.motes.frustumCulled = false;
+    this.group.add(this.motes);
+  }
+
+  setFollowTarget(target) {
+    this.followTarget = target;
+  }
+
+  setParticleQuality(count) {
+    if (!this.motes) return;
+    const total = this.motes.geometry.attributes.position.count;
+    if (count === total) return;
+    this.group.remove(this.motes);
+    this.motes.geometry.dispose();
+    this.motes.material.dispose();
+    this._buildMotes(count);
+  }
+
+  _updateMotes(dt, daytime) {
+    if (!this.motes) return;
+    if (this.followTarget) {
+      this.motes.position.set(this.followTarget.x || 0, 0, this.followTarget.z || 0);
+    }
+    const attribute = this.motes.geometry.attributes.position;
+    const array = attribute.array;
+    const count = array.length / 3;
+    for (let i = 0; i < count; i++) {
+      const phase = this.moteDrift[i * 2];
+      const speed = this.moteDrift[i * 2 + 1];
+      array[i * 3] += Math.sin(this.elapsed * 0.42 + phase) * dt * speed;
+      array[i * 3 + 1] += Math.cos(this.elapsed * 0.31 + phase) * dt * speed * 0.35;
+      array[i * 3 + 2] += Math.cos(this.elapsed * 0.36 + phase) * dt * speed;
+      if (array[i * 3] > 14) array[i * 3] = -14;
+      if (array[i * 3] < -14) array[i * 3] = 14;
+      if (array[i * 3 + 1] > 6.6) array[i * 3 + 1] = 0.35;
+      if (array[i * 3 + 1] < 0.3) array[i * 3 + 1] = 6.5;
+      if (array[i * 3 + 2] > 14) array[i * 3 + 2] = -14;
+      if (array[i * 3 + 2] < -14) array[i * 3 + 2] = 14;
+    }
+    attribute.needsUpdate = true;
+    this.motes.material.opacity = 0.16 + (1 - daytime) * 0.2;
   }
 
   _buildWeather(quality) {
@@ -178,6 +261,7 @@ export class SkySystem {
 
   update(dt, force = false) {
     this.time = (this.time + dt / DAY_LENGTH_SECONDS) % 1;
+    this.elapsed += dt;
     const t = this.time;
     const phase = phaseAt(t);
     const index = TIME_PHASES.indexOf(phase);
@@ -194,28 +278,34 @@ export class SkySystem {
     this.skyMaterial.uniforms.horizonColor.value.copy(new THREE.Color(phase.sun)).lerp(new THREE.Color(next.sun), blend);
 
     const fogColor = new THREE.Color(phase.fog).lerp(new THREE.Color(next.fog), blend);
+    fogColor.lerp(new THREE.Color(0x9eb9d2), 0.12 + THREE.MathUtils.smoothstep(Math.sin((t - 0.05) * Math.PI * 2), -0.12, 0.25) * 0.14);
     this.scene.fog.color.copy(fogColor);
-    this.scene.fog.density = this.weather === 'mist' ? 0.015 : 0.0062;
 
     const angle = (t - 0.05) * Math.PI * 2;
     const sunY = Math.sin(angle);
     const sunPos = new THREE.Vector3(Math.cos(angle) * 170, sunY * 120, 60);
     const daytime = THREE.MathUtils.smoothstep(sunY, -0.12, 0.25);
     const lightPower = THREE.MathUtils.lerp(phase.light, next.light, blend);
+    this.scene.fog.density = this.weather === 'mist' ? 0.0135 : 0.0088 + (1 - daytime) * 0.001;
 
-    this.sun.position.copy(sunPos.normalize().multiplyScalar(300));
+    this.sun.position.copy(sunPos).normalize().multiplyScalar(300);
     this.moon.position.copy(this.sun.position).multiplyScalar(-1);
     this.sun.material.opacity = daytime;
     this.moon.material.opacity = 1 - daytime;
+    this.skyMaterial.uniforms.sunDirection.value.copy(this.sun.position).normalize();
+    this.skyMaterial.uniforms.sunColor.value.copy(this.skyMaterial.uniforms.horizonColor.value);
+    this.skyMaterial.uniforms.sunStrength.value = daytime * 0.42;
 
     const lightSource = daytime > 0.4 ? sunPos.clone().normalize().multiplyScalar(100) : this.moon.position.clone().normalize().multiplyScalar(100);
     this.sunLight.position.copy(lightSource);
     this.sunLight.target.position.set(0, 0, 0);
-    this.sunLight.intensity = Math.max(0.18, lightPower * (0.35 + daytime * 0.65));
+    this.sunLight.intensity = Math.max(0.3, lightPower * (0.72 + daytime * 1.28));
     this.sunLight.color.copy(new THREE.Color(phase.sun).lerp(new THREE.Color(next.sun), blend));
-    this.hemi.intensity = 0.45 + daytime * 0.7;
-    this.ambient.intensity = 0.22 + (1 - daytime) * 0.12;
+    this.hemi.intensity = 0.42 + daytime * 0.35;
+    this.ambient.intensity = 0.42 + daytime * 0.28;
+    this.fillLight.intensity = 0.18 + (1 - daytime) * 0.14;
     this.starMaterial.opacity = Math.max(0, 1 - daytime * 1.35) * 0.95;
+    this._updateMotes(dt, daytime);
 
     if (this.weather === 'rain' || this.weather === 'starfall') {
       const attribute = (this.weather === 'rain' ? this.rain : this.starfall).geometry.attributes.position;

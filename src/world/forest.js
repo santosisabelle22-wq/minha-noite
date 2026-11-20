@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { MATERIALS } from './materials.js';
 import { seededRandom, createGlowTexture, createStarTexture, createLabelSprite } from '../core/utils.js';
+import { buildDistantTrees, buildMistBands } from './atmosphere.js';
 import { Butterflies, Fireflies, Creature } from '../entities/creatures.js';
 
 const BOUNDS = { minX: -78, maxX: 78, minZ: -78, maxZ: 78 };
@@ -44,6 +45,7 @@ export class ForestWorld {
     this.interactables = [];
     this.collectibles = new Map();
     this.animations = [];
+    this.occluders = [];
     this.random = seededRandom(4821);
 
     this.heightAt = (x, z) => Math.sin(x * 0.055) * 0.26 * Math.cos(z * 0.045) + Math.sin(z * 0.09) * 0.08;
@@ -51,6 +53,7 @@ export class ForestWorld {
     this._buildGround();
     this._buildPathsAndWater();
     this._buildTrees();
+    this._buildAtmosphere();
     this._buildUndergrowth();
     this._buildRuins();
     this._buildCreatures();
@@ -250,6 +253,7 @@ export class ForestWorld {
       trunk.position.y = 6;
       trunk.castShadow = true;
       tree.add(trunk);
+      this.occluders.push(trunk);
       for (let i = 0; i < 5; i++) {
         const angle = (i / 5) * Math.PI * 2;
         const root = new THREE.Mesh(new THREE.CapsuleGeometry(0.28, 2.4, 3, 6), MATERIALS.bark);
@@ -279,10 +283,57 @@ export class ForestWorld {
     }
   }
 
+  _buildAtmosphere() {
+    this.group.add(buildDistantTrees({
+      random: this.random, quality: this.quality,
+      minRadius: 84, maxRadius: 108, heightAt: this.heightAt
+    }));
+
+    const mist = buildMistBands({
+      random: this.random,
+      quality: this.quality,
+      spots: [[0, 6], [-6, -14], [-16, -34], [12, -28], [22, -46], [-24, 8], [6, -46]]
+    });
+    this.group.add(mist.group);
+    let mistTime = 0;
+    this.animations.push((dt) => {
+      mistTime += dt;
+      mist.update(mistTime);
+    });
+  }
+
   _buildUndergrowth() {
-    const grass = new THREE.InstancedMesh(new THREE.ConeGeometry(0.075, 0.42, 3), MATERIALS.leaf[2], this.quality.grass);
-    const flowers = new THREE.InstancedMesh(new THREE.SphereGeometry(0.13, 7, 5), MATERIALS.flower[0], this.quality.flowers);
-    const stems = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.018, 0.018, 0.32, 4), MATERIALS.moss, this.quality.flowers);
+    // Oscilação no vertex shader: nenhum custo de CPU por planta.
+    this._swayUniform = { value: 0 };
+    const swayMaterial = (source, amount) => {
+      const material = source.clone();
+      const key = `sway-${amount}`;
+      material.onBeforeCompile = (shader) => {
+        shader.uniforms.uSwayTime = this._swayUniform;
+        shader.vertexShader = `uniform float uSwayTime;\n${shader.vertexShader}`.replace(
+          '#include <begin_vertex>',
+          `#include <begin_vertex>
+           #ifdef USE_INSTANCING
+             float swayPhase = instanceMatrix[3].x * 0.34 + instanceMatrix[3].z * 0.21;
+             float swayAmount = max(transformed.y, 0.0) * ${amount.toFixed(3)};
+             transformed.x += sin(uSwayTime * 1.15 + swayPhase) * swayAmount;
+             transformed.z += cos(uSwayTime * 0.92 + swayPhase) * swayAmount * 0.7;
+           #endif`
+        );
+      };
+      material.customProgramCacheKey = () => key;
+      return material;
+    };
+
+    const grass = new THREE.InstancedMesh(
+      new THREE.ConeGeometry(0.075, 0.42, 3), swayMaterial(MATERIALS.leaf[2], 0.055), this.quality.grass
+    );
+    const flowers = new THREE.InstancedMesh(
+      new THREE.SphereGeometry(0.13, 7, 5), swayMaterial(MATERIALS.flower[0], 0.022), this.quality.flowers
+    );
+    const stems = new THREE.InstancedMesh(
+      new THREE.CylinderGeometry(0.018, 0.018, 0.32, 4), swayMaterial(MATERIALS.moss, 0.03), this.quality.flowers
+    );
     const dummy = new THREE.Object3D();
     const color = new THREE.Color();
 
@@ -567,6 +618,7 @@ export class ForestWorld {
   }
 
   update(dt, time, nightFactor, camera) {
+    if (this._swayUniform) this._swayUniform.value = time;
     for (const animation of this.animations) animation(dt);
     this.butterflies.update(dt, time);
     this.fireflies.update(dt, time, nightFactor);

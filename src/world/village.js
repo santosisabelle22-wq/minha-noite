@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { MATERIALS } from './materials.js';
 import { createGlowTexture, createLabelSprite, seededRandom } from '../core/utils.js';
+import { buildDistantTrees, buildMistBands, buildContactShadow } from './atmosphere.js';
 import { CharacterModel } from '../entities/character.js';
 import { Creature } from '../entities/creatures.js';
 
@@ -23,6 +24,7 @@ export class VillageWorld {
     this.group = new THREE.Group();
     this.interactables = [];
     this.animations = [];
+    this.occluders = [];
     this.random = seededRandom(9901);
     this.heightAt = () => 0;
 
@@ -31,6 +33,7 @@ export class VillageWorld {
     this._buildBuildings();
     this._buildPortal();
     this._buildDecor();
+    this._buildAtmosphere();
     this._buildLivy();
     this.spawn = new THREE.Vector3(0, 0, 9);
   }
@@ -110,6 +113,7 @@ export class VillageWorld {
 
     const base = part(group, new THREE.BoxGeometry(6.4, 3.6, 5), MATERIALS.wall, 0, 1.8, 0);
     base.receiveShadow = true;
+    this.occluders.push(base);
     part(group, new THREE.BoxGeometry(6.7, 0.35, 5.3), MATERIALS.gold, 0, 3.55, 0);
 
     const roof = part(group, new THREE.ConeGeometry(4.9, 2.6, 4), roofColor, 0, 4.9, 0);
@@ -123,6 +127,7 @@ export class VillageWorld {
       if (tower) {
         const t = part(group, new THREE.CylinderGeometry(0.9, 1.05, 4.6, 8), MATERIALS.wallBlue, side * 3.1, 2.3, -1.4);
         t.castShadow = true;
+        this.occluders.push(t);
         const cone = part(group, new THREE.ConeGeometry(1.35, 2.2, 8), roofColor, side * 3.1, 5.5, -1.4);
         cone.rotation.y = Math.PI / 8;
         const lantern = part(group, new THREE.SphereGeometry(0.18, 8, 6), MATERIALS.goldBright, side * 3.1, 4.3, -0.4);
@@ -309,6 +314,31 @@ export class VillageWorld {
         game.toast('Coelho da vila registrado nas descobertas');
       }
     });
+  }
+
+  _buildAtmosphere() {
+    this.group.add(buildDistantTrees({
+      random: this.random, quality: this.quality,
+      minRadius: 62, maxRadius: 90
+    }));
+
+    const mist = buildMistBands({
+      random: this.random,
+      quality: this.quality,
+      spots: [[0, -18], [-16, 6], [16, 8], [0, 24], [-22, -12], [22, -14]]
+    });
+    this.group.add(mist.group);
+    let mistTime = 0;
+    this.animations.push((dt) => {
+      mistTime += dt;
+      mist.update(mistTime);
+    });
+
+    // Sombras de contato discretas ancoram as construções no chão.
+    for (const building of [this.house, this.petHouse, this.museum, this.missionHall]) {
+      if (!building) continue;
+      this.group.add(buildContactShadow(building.group.position.x, building.group.position.z, 11, 9, 0.26));
+    }
   }
 
   _buildLivy() {

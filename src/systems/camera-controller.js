@@ -7,10 +7,11 @@ export class CameraController {
     this.camera = camera;
     this.input = input;
     this.yaw = 0;
-    this.pitch = 0.34;
-    this.distance = 7.2;
+    this.pitch = 0.28;
+    this.distance = 7.6;
     this.target = new THREE.Vector3(0, 1.2, 0);
     this.desired = new THREE.Vector3();
+    this.lookAhead = new THREE.Vector3();
     this.raycaster = new THREE.Raycaster();
     this.occluders = [];
     this.lookAccumulated = 0;
@@ -26,25 +27,37 @@ export class CameraController {
 
   reset(yaw = 0) {
     this.yaw = yaw;
-    this.pitch = 0.34;
-    this.distance = 7.2;
+    this.pitch = 0.28;
+    this.distance = 7.6;
+    this.lookAhead.set(0, 0, 0);
     this.updateBasis();
+  }
+
+  setOccluders(list) {
+    this.occluders = list || [];
   }
 
   update(dt, playerPosition, groundHeight = 0) {
     const look = this.input.getLookDelta();
     if (Math.abs(look.x) + Math.abs(look.y) > 0) {
       this.yaw -= look.x * 0.0032;
-      this.pitch = clamp(this.pitch + look.y * 0.0026, -0.12, 1.02);
+      this.pitch = clamp(this.pitch + look.y * 0.0026, -0.18, 0.96);
       this.lookAccumulated += Math.abs(look.x) + Math.abs(look.y);
       this.updateBasis();
     }
     const zoom = this.input.consumeZoom();
-    if (zoom) this.distance = clamp(this.distance + zoom * 0.0055, 3.2, 12);
+    if (zoom) this.distance = clamp(this.distance + zoom * 0.0055, 3.4, 12);
 
-    this.target.x = damp(this.target.x, playerPosition.x, 9, dt);
-    this.target.y = damp(this.target.y, playerPosition.y + 1.35, 7, dt);
-    this.target.z = damp(this.target.z, playerPosition.z, 9, dt);
+    // Antecipação suave na direção do movimento: o cenário entra em quadro antes do personagem.
+    const move = this.input.getMoveVector();
+    const aheadX = (this.forward.x * move.forward + this.right.x * move.x) * 0.45;
+    const aheadZ = (this.forward.z * move.forward + this.right.z * move.x) * 0.45;
+    this.lookAhead.x = damp(this.lookAhead.x, aheadX, 3.5, dt);
+    this.lookAhead.z = damp(this.lookAhead.z, aheadZ, 3.5, dt);
+
+    this.target.x = damp(this.target.x, playerPosition.x + this.lookAhead.x, 7.5, dt);
+    this.target.y = damp(this.target.y, playerPosition.y + 1.4, 6.5, dt);
+    this.target.z = damp(this.target.z, playerPosition.z + this.lookAhead.z, 7.5, dt);
 
     const horizontal = Math.cos(this.pitch) * this.distance;
     this.desired.set(

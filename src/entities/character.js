@@ -54,12 +54,19 @@ export class CharacterModel {
     this._materials = [];
 
     const a = this.appearance;
-    const skin = this._mat(a.skin, { roughness: 0.9 });
-    const hairMat = this._mat(a.hair, { roughness: 0.95 });
-    const dressMat = this._mat(a.dress, { roughness: 0.62 });
-    const dressLight = this._mat(0xf7f9ff, { roughness: 0.7 });
-    const goldMat = this._mat(0xd9ad55, { metalness: 0.5, roughness: 0.35 });
-    const eyeMat = this._mat(a.eyes, { roughness: 0.35, emissive: a.eyes, emissiveIntensity: 0.15 });
+    // Rosto de porcelana: leve brilho fosco e um toque de luz fria para não apagar à noite.
+    const skin = this._mat(a.skin, {
+      roughness: 0.78, metalness: 0, emissive: 0x2b3247, emissiveIntensity: 0.06
+    });
+    const hairMat = this._mat(a.hair, { roughness: 0.92 });
+    const hairShine = this._mat(new THREE.Color(a.hair).lerp(new THREE.Color(0xa97450), 0.34).getHex(), {
+      roughness: 0.78, emissive: 0x2a1c14, emissiveIntensity: 0.05
+    });
+    const dressMat = this._mat(a.dress, { roughness: 0.58, emissive: 0x14264a, emissiveIntensity: 0.05 });
+    const dressLight = this._mat(0xf4f1e8, { roughness: 0.66, emissive: 0x1a2c50, emissiveIntensity: 0.07 });
+    const goldMat = this._mat(0xd8b66c, { metalness: 0.45, roughness: 0.38 });
+    const eyeMat = this._mat(a.eyes, { roughness: 0.3, emissive: a.eyes, emissiveIntensity: 0.22 });
+    const eyeLight = this._mat(0xffffff, { emissive: 0xffffff, emissiveIntensity: 0.35, roughness: 0.2 });
     const shoeMat = this._mat(this.isLivy ? 0xf7f9ff : 0x3d3350);
     const dark = this._mat(0x27354e);
 
@@ -95,6 +102,7 @@ export class CharacterModel {
     this.torso.position.y = 1.02;
     add(this.torso, new THREE.CylinderGeometry(0.21, 0.27, 0.44, 12), dressMat, 0, 0.2, 0);
     add(this.torso, new THREE.CylinderGeometry(0.225, 0.225, 0.07, 12), goldMat, 0, 0.41, 0);
+    add(this.torso, new THREE.CylinderGeometry(0.16, 0.21, 0.16, 12), dressLight, 0, 0.3, 0.12);
     add(this.torso, new THREE.SphereGeometry(0.055, 8, 6), goldMat, 0, 0.2, 0.235);
 
     // Braços e mangas
@@ -119,18 +127,22 @@ export class CharacterModel {
     add(this.head, new THREE.SphereGeometry(0.31, 18, 14), skin);
     add(this.head, new THREE.SphereGeometry(0.055, 8, 6), skin, 0, -0.02, 0.3);
     for (const side of [-1, 1]) {
-      const eyeWhite = add(this.head, new THREE.SphereGeometry(0.062, 10, 8), MATERIALS.white, side * 0.12, 0.035, 0.275);
+      const eyeWhite = add(this.head, new THREE.SphereGeometry(0.062, 10, 8), dressLight, side * 0.12, 0.035, 0.275);
       eyeWhite.scale.set(1, 1.15, 0.5);
-      const iris = add(this.head, new THREE.SphereGeometry(0.04, 10, 8), eyeMat, side * 0.12, 0.03, 0.305);
-      iris.scale.set(1, 1.1, 0.5);
+      const iris = add(this.head, new THREE.SphereGeometry(0.045, 10, 8), eyeMat, side * 0.12, 0.03, 0.305);
+      iris.scale.set(1, 1.12, 0.5);
       add(this.head, new THREE.SphereGeometry(0.012, 6, 6), dark, side * 0.12, 0.03, 0.328);
-      const brow = add(this.head, new THREE.BoxGeometry(0.1, 0.014, 0.014), hairMat, side * 0.12, 0.12, 0.28);
+      const catchlight = add(this.head, new THREE.SphereGeometry(0.011, 6, 6), eyeLight, side * 0.12 - 0.014, 0.055, 0.326);
+      catchlight.castShadow = false;
+      const lash = add(this.head, new THREE.BoxGeometry(0.12, 0.012, 0.012), hairMat, side * 0.12, 0.09, 0.285);
+      lash.rotation.z = -side * 0.07;
+      const brow = add(this.head, new THREE.BoxGeometry(0.1, 0.014, 0.014), hairMat, side * 0.12, 0.13, 0.28);
       brow.rotation.z = side * 0.08;
-      add(this.head, new THREE.SphereGeometry(0.035, 8, 6), this._mat(0xe8a5a0, { transparent: true, opacity: 0.4 }), side * 0.2, -0.07, 0.245);
+      add(this.head, new THREE.SphereGeometry(0.035, 8, 6), this._mat(0xe8a5a0, { transparent: true, opacity: 0.32 }), side * 0.2, -0.07, 0.245);
     }
     const mouth = add(this.head, new THREE.BoxGeometry(0.06, 0.012, 0.012), this._mat(0xb87870), 0, -0.115, 0.294);
     mouth.castShadow = false;
-    this._buildHair(hairMat);
+    this._buildHair(hairMat, hairShine);
     this.visual.add(this.head);
 
     // Acessório
@@ -173,15 +185,25 @@ export class CharacterModel {
     this.visual.traverse((node) => { if (node.isMesh) node.castShadow = true; });
   }
 
-  _buildHair(hairMat) {
+  _buildHair(hairMat, hairShine) {
     const style = this.appearance.hairstyle;
     const hair = new THREE.Group();
     add(hair, new THREE.SphereGeometry(0.325, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.55), hairMat, 0, 0.04, 0);
+    // Mechas claras muito sutis dão volume sem mudar a cor dos cabelos.
+    for (let i = 0; i < 4; i++) {
+      const strand = add(hair, new THREE.SphereGeometry(0.055, 8, 6), hairShine,
+        -0.2 + i * 0.13, 0.28 + (i % 2) * 0.015, 0.15);
+      strand.scale.set(0.6, 0.35, 1);
+      strand.castShadow = false;
+    }
     if (style === 'curls') {
       for (const side of [-1, 1]) {
         for (let i = 0; i < 3; i++) {
           add(hair, new THREE.SphereGeometry(0.13 - i * 0.012, 10, 8), hairMat,
             side * (0.28 + i * 0.015), 0.1 - i * 0.18, -0.05 - i * 0.02);
+          const highlight = add(hair, new THREE.SphereGeometry(0.055 - i * 0.006, 8, 6), hairShine,
+            side * (0.3 + i * 0.015), 0.13 - i * 0.18, 0.03);
+          highlight.castShadow = false;
         }
       }
       for (let i = 0; i < 5; i++) {

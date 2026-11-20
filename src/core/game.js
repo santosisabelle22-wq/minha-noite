@@ -98,12 +98,14 @@ export class Game {
 
     this.worlds.forest.group.visible = false;
     this.world = this.worlds.village;
+    this._refreshCameraOccluders();
     this.playerModel = new CharacterModel({
       appearance: this.save.profile.appearance,
       affinity: this.save.profile.affinity
     });
     this.scene.add(this.playerModel.group);
     this.player.setModel(this.playerModel);
+    this.sky.setFollowTarget(this.player.position);
     this.player.teleport(new THREE.Vector3(0, 0, 9));
     this.cameraController.reset(0);
     this.cameraController.update(0.016, this.player.position, 0);
@@ -222,6 +224,7 @@ export class Game {
       this.world = target;
       this.worlds.village.group.visible = target.id === 'village';
       this.worlds.forest.group.visible = target.id === 'forest';
+      this._refreshCameraOccluders();
     }
     const savedPos = this.save.game.position;
     this.player.teleport(new THREE.Vector3(savedPos.x, savedPos.y || 0, savedPos.z));
@@ -239,6 +242,7 @@ export class Game {
       this.world.group.visible = false;
       this.world = target;
       target.group.visible = true;
+      this._refreshCameraOccluders();
       const spawn = target.getSpawn();
       this.player.teleport(spawn);
       this.cameraController.reset(0);
@@ -317,6 +321,10 @@ export class Game {
     this.ui.openPanel(name);
   }
 
+  _refreshCameraOccluders() {
+    this.cameraController?.setOccluders(this.world?.occluders || []);
+  }
+
   setQuality(value) {
     if (!QUALITY_PRESETS[value]) return;
     this.save.settings.quality = value;
@@ -326,6 +334,7 @@ export class Game {
     this.sky.sunLight.castShadow = this.quality.shadows;
     this.sky.sunLight.shadow.map?.dispose();
     this.sky.sunLight.shadow.map = null;
+    this.sky.setParticleQuality(this.quality.particles);
     this.requestSave();
     this.toast(`Qualidade gráfica: ${this.quality.label}`);
   }
